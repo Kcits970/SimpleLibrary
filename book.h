@@ -42,6 +42,31 @@ void freeBook(BOOK* book) {
 	free(book);
 }
 
+void writeBookToFile(FILE* fp, BOOK* book) {
+	writeString(fp, book->title);
+	writeString(fp, book->author);
+	writeInteger(fp, book->pages);
+}
+
+BOOK* readBookFromFile(FILE* fp) {
+	BOOK* book = createEmptyBook();
+
+	bool isTitleValid = readString(fp, defaultBuffer, DEFAULT_BUFFER_LENGTH);
+	setTitle(book, defaultBuffer);
+
+	bool isAuthorValid = readString(fp, defaultBuffer, DEFAULT_BUFFER_LENGTH);
+	setAuthor(book, defaultBuffer);
+
+	bool isPageNumValid = readInteger(fp, &book->pages);
+
+	if (isTitleValid && isAuthorValid && isPageNumValid)
+		return book;
+	else {
+		freeBook(book);
+		return NULL;
+	}
+}
+
 typedef struct {
 	int capacity;
 	BOOK** bookHeap;
@@ -80,15 +105,15 @@ int searchNthBookIndex(BOOKSHELF* bookshelf, int nth) {
 	return -1;
 }
 
-int addBook(BOOKSHELF* bookshelf, BOOK* book) {
+bool addBook(BOOKSHELF* bookshelf, BOOK* book) {
 	int availableIndex = searchAvailableIndex(bookshelf);
 
 	if (availableIndex != -1) {
 		bookshelf->bookHeap[availableIndex] = book;
 		(bookshelf->currentSize)++;
-		return 1;
+		return true;
 	} else {
-		return 0;
+		return false;
 	}
 }
 
@@ -105,17 +130,17 @@ BOOK* takeBook(BOOKSHELF* bookshelf, int nth) {
 	return NULL;
 }
 
-int deleteBook(BOOKSHELF* bookshelf, int nth) {
+bool deleteBook(BOOKSHELF* bookshelf, int nth) {
 	int nthBookIndex = searchNthBookIndex(bookshelf, nth);
 
 	if (nthBookIndex != -1) {
 		freeBook(bookshelf->bookHeap[nthBookIndex]);
 		bookshelf->bookHeap[nthBookIndex] = NULL;
 		(bookshelf->currentSize)--;
-		return 1;
+		return true;
 	}
 
-	return 0;
+	return false;
 }
 
 void printCriteriaNames() {
@@ -148,5 +173,37 @@ void printBookshelfContents(BOOKSHELF* bookshelf) {
 			printf("\n");
 		}
 	}
+}
 
+void writeBookshelfToFile(BOOKSHELF* bookshelf, const char* filename) {
+	FILE* fp = fopen(filename, "wb");
+	if (fp == NULL) return;
+
+	writeInteger(fp, bookshelf->capacity);
+	
+	while (true) {
+		BOOK* currentBook = takeBook(bookshelf, 1);
+		if (currentBook == NULL) break;
+		writeBookToFile(fp, currentBook);
+	}
+
+	fflush(fp);
+	fclose(fp);
+}
+
+BOOKSHELF* readBookshelfFromFile(const char* filename) {
+	FILE* fp = fopen(filename, "rb");
+	if (fp == NULL) return NULL;
+
+	int bookshelfCapacity;
+	if (!readInteger(fp, &bookshelfCapacity)) return NULL;
+	if (bookshelfCapacity > LIBRARY_CAPACITY) return NULL;
+
+	BOOKSHELF* bookshelf = createEmptyBookshelf(bookshelfCapacity);
+	BOOK* currentBook;
+	while (currentBook = readBookFromFile(fp), currentBook != NULL)
+		addBook(bookshelf, currentBook);
+
+	fclose(fp);
+	return bookshelf;
 }
