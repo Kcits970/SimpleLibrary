@@ -1,3 +1,6 @@
+#ifndef FORMATTING_H_
+#define FORMATTING_H_
+
 #define MAX_OPTION_LENGTH 32
 
 void printNDashes(int n) {
@@ -15,7 +18,7 @@ void printFormattedOption(const char* option, char command) {
 
 void printFormattedTitle(const char* title) {
 	puts("");
-	printf("    <%s>", title);
+	printf("%-4s<%s>", "", title);
 	puts("");
 }
 
@@ -39,3 +42,5 @@ void printNDigits(int number, int n) {
 	sprintf(defaultBuffer, "%d", number);
 	printNCharacters(defaultBuffer, n);
 }
+
+#endif

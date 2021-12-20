@@ -1,17 +1,23 @@
 #define _CRT_SECURE_NO_WARNINGS
-#define VERSION_ID 4
-#define LIBRARY_CAPACITY 8
+#define VERSION_ID 2
+#define LIBRARY_CAPACITY 16
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
+
+typedef enum {false=0, true=1} bool;
 
 #include "userinput.h"
 #include "formatting.h"
-#include "book.h"
+#include "binaryio.h"
 #include "account.h"
+#include "book.h"
 
 BOOKSHELF* publicBookshelf = NULL;
 BOOKSHELF* myBookshelf = NULL;
+#define PUBLIC_BOOKSHELF_FILENAME "publicitems.dat"
+#define MY_BOOKSHELF_FILENAME "myitems.dat"
 
 void printMainOptions() {
 	printFormattedTitle("MAIN OPTIONS");
@@ -41,10 +47,10 @@ void promptAddition() {
 
 	BOOK* book = createEmptyBook();
 
-	getInputInDefaultBuffer("TITLE: ");
+	getInputInDefaultBuffer("TITLE: ", NULL, false);
 	setTitle(book, defaultBuffer);
 
-	getInputInDefaultBuffer("AUTHOR: ");
+	getInputInDefaultBuffer("AUTHOR: ", NULL, false);
 	setAuthor(book, defaultBuffer);
 
 	setPages(book, getNumberInput("PAGES: ", 0, INT_MAX));
@@ -52,7 +58,8 @@ void promptAddition() {
 	if (!addBook(publicBookshelf, book)) {
 		printf("MAX CAPACITY REACHED: UNABLE TO ADD NEW ITEM\n");
 		freeBook(book);
-	} else {
+	}
+	else {
 		printf("ITEM SUCCESSFULLY ADDED\n");
 	}
 }
@@ -65,7 +72,8 @@ void promptDeletion() {
 
 	if (!deleteBook(publicBookshelf, deleteIndex)) {
 		printf("INVALID ITEM: UNABLE TO DELETE NON-EXISTING ITEM\n");
-	} else {
+	}
+	else {
 		printf("ITEM SUCCESSFULLY DELETED\n");
 	}
 }
@@ -79,7 +87,8 @@ void promptCheckout() {
 
 	if (bookToReserve == NULL) {
 		printf("INVALID ITEM: CANNONT CHECKOUT A NON-EXISTING ITEM\n");
-	} else {
+	}
+	else {
 		addBook(myBookshelf, bookToReserve);
 		printf("ITEM SUCCESSFULLY RESERVED\n");
 	}
@@ -94,10 +103,29 @@ void promptReturn() {
 
 	if (bookToReturn == NULL) {
 		printf("INVALID ITEM: CANNONT RETURN A NON-EXISTING ITEM\n");
-	} else {
+	}
+	else {
 		addBook(publicBookshelf, bookToReturn);
 		printf("ITEM SUCCESSFULLY RETURNED\n");
 	}
+}
+
+void promptExit() {
+	char save = getCharacterInput("SAVE BEFORE EXIT? (Y/N): ");
+
+	switch (save) {
+	case 'Y':
+		writeBookshelfToFile(publicBookshelf, PUBLIC_BOOKSHELF_FILENAME);
+		writeBookshelfToFile(myBookshelf, MY_BOOKSHELF_FILENAME);
+		break;
+	case 'N':
+		break;
+	default:
+		printf("'%c' IS NOT AN IDENTIFIABLE COMMAND\n", save);
+		return;
+	}
+
+	exit(0);
 }
 
 void promptMainMenu() {
@@ -115,9 +143,7 @@ void promptMainMenu() {
 		case 'D': promptMyContents(); break;
 		case 'E': promptCheckout(); break;
 		case 'F': promptReturn(); break;
-		case 'Q':
-			exitMainPrompt = 1;
-			break;
+		case 'Q': promptExit(); break;
 		default:
 			printf("'%c' IS NOT AN IDENTIFIABLE COMMAND\n", optionSelection);
 			break;
@@ -125,19 +151,29 @@ void promptMainMenu() {
 	}
 }
 
+void setupBookshelves() {
+	publicBookshelf = readBookshelfFromFile(PUBLIC_BOOKSHELF_FILENAME);
+	myBookshelf = readBookshelfFromFile(MY_BOOKSHELF_FILENAME);
+
+	if (publicBookshelf == NULL) {
+		publicBookshelf = createEmptyBookshelf(LIBRARY_CAPACITY);
+
+		//adding default books
+		addBook(publicBookshelf, createBook("Head First C", "David Griffiths", 633));
+		addBook(publicBookshelf, createBook("Head First Java", "Kathy Sierra", 722));
+		addBook(publicBookshelf, createBook("Prime Obsession", "John Derbyshire", 447));
+		addBook(publicBookshelf, createBook("Fermat's Last Theorem", "Simon Singh", 368));
+	}
+
+	if (myBookshelf == NULL)
+		myBookshelf = createEmptyBookshelf(LIBRARY_CAPACITY);
+}
+
 int main(void) {
 	printf(">>LIBRARY SYSTEM: VERSION %d\n", VERSION_ID);
 
-	publicBookshelf = createEmptyBookshelf(LIBRARY_CAPACITY);
-	myBookshelf = createEmptyBookshelf(LIBRARY_CAPACITY);
-
-	//adding default books
-	addBook(publicBookshelf, createBook("Head First C", "David Griffiths", 633));
-	addBook(publicBookshelf, createBook("Head First Java", "Kathy Sierra", 722));
-	addBook(publicBookshelf, createBook("Prime Obsession", "John Derbyshire", 447));
-	addBook(publicBookshelf, createBook("Fermat's Last Theorem", "Simon Singh", 368));
-
 	promptAccountMenu();
+	setupBookshelves();
 	promptMainMenu();
 	return 0;
 }
